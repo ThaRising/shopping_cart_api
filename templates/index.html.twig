@@ -1,0 +1,25 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+	<div class="container-fluid">
+        <div class="row">
+		{% for product in products %}
+			{% set attrs = {"price": product.price, "name": product.name} %}
+			{% include "product_card.html.twig" with attrs %}
+		{% endfor %}
+        </div>
+        <div x-data="{ name: '', price: null }">
+            <div class="input-group mb-3">
+                <input type="number" class="form-control" placeholder="Price" aria-label="Price" aria-describedby="basic-addon1" x-model="price" min="0" step="0.01">
+                <div class="input-group-append">
+                    <span class="input-group-text" id="basic-addon1">€</span>
+                    <span class="input-group-text" id="basic-addon2">0.00</span>
+                </div>
+            </div>
+            <div class="input-group mb-3">
+                <input type="text" x-model="name" class="form-control" placeholder="Product Name" aria-label="Product Name" aria-describedby="basic-addon1">
+            </div>
+            <input type="submit" class="btn btn-primary btn-lg btn-block" value="Add Product">
+        </div>
+	</div>
+{% endblock body %}
