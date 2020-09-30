@@ -8,12 +8,14 @@ use Symfony\Component\HttpFoundation\Response;
 use App\Entity\Product;
 use App\Repository\ProductRepository;
 use App\Controller\NormalizingOrmController;
+use App\Controller\ShortcutController;
 use Doctrine\ORM\EntityManager;
+use App\Schema\ProductSchema;
 
 /**
  * @Route("/products", name="products_")
  */
-class ProductController extends NormalizingOrmController {
+class ProductController extends ShortcutController {
     public function format_price(float $price): string {
         // float to correct decimal format (expects 4)
         return number_format($price, 4, '.', ' ');
@@ -29,9 +31,7 @@ class ProductController extends NormalizingOrmController {
     public function list(ProductRepository $repository): Response {
         $items = $repository -> findAll();
 
-        $data = $this->normalize($items);
-
-        return $this->json($data);
+        return $this->json($items);
     }
 
     /**
@@ -47,8 +47,7 @@ class ProductController extends NormalizingOrmController {
     ): Response {
         $item = $this->get_or_404($repository, $pk);
 
-        $data = $this->normalize($item);
-        return $this->json($data);
+        return $this->json($item);
     }
 
     /**
@@ -60,6 +59,10 @@ class ProductController extends NormalizingOrmController {
      */
     public function create(Request $request): Response {
         $body = json_decode($request->getContent(), true);
+        $this->valid_or_422(
+            new ProductSchema(),
+            $body
+        );
 
         $price = $this->format_price($body["price"]);
 
@@ -71,9 +74,7 @@ class ProductController extends NormalizingOrmController {
         $this->get_entity_manager()->persist($item);
         $this->get_entity_manager()->flush();
 
-        $data = $this->normalize($item);
-
-        return $this->json($data, 201);
+        return $this->json($item, 201);
     }
     /**
      * @Route(
@@ -88,6 +89,11 @@ class ProductController extends NormalizingOrmController {
         ProductRepository $repository
     ): Response {
         $body = json_decode($request->getContent(), true);
+        $this->valid_or_422(
+            new ProductSchema(),
+            $body,
+            ["partial" => true]
+        );
 
         $item = $this->get_or_404($repository, $pk);
         foreach ($body as $key => $value) {
@@ -103,8 +109,7 @@ class ProductController extends NormalizingOrmController {
             );
         }
         $this->get_entity_manager()->flush();
-        $data = $this->normalize($item);
-        return $this->json($data);
+        return $this->json($item);
     }
 
     /**
@@ -120,6 +125,10 @@ class ProductController extends NormalizingOrmController {
         ProductRepository $repository
     ): Response {
         $body = json_decode($request->getContent(), true);
+        $this->valid_or_422(
+            new ProductSchema(),
+            $body
+        );
 
         $price = $this->format_price($body["price"]);
 
@@ -128,8 +137,7 @@ class ProductController extends NormalizingOrmController {
         $item->setPrice($price);
         $this->get_entity_manager()->flush();
 
-        $data = $this->normalize($item);
-        return $this->json($data);
+        return $this->json($item);
     }
 
     /**

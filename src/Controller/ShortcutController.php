@@ -8,6 +8,9 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\Validator\Validation;
 use Symfony\Component\Validator\Constraints\NotNull;
 
+// Useless imports so I can jump to source more easily
+use Symfony\Component\Validator\ConstraintViolationList;
+
 abstract class ShortcutController extends AbstractController {
     public function get_entity_manager(): EntityManager {
         return $this->getDoctrine()->getManager();
@@ -58,11 +61,10 @@ abstract class ShortcutController extends AbstractController {
         }
 
         // Check that all keys in body are also in schema
-        $schema_keys = get_object_vars($schema);
+        $schema_keys = $schema->get_fields();
+
         foreach ($body as $key => $_) {
-            try {
-                $schema_keys[$key];
-            } catch (\Throwable $th) {
+            if (!in_array($key, $schema_keys)) {
                 throw new HttpException(
                     422,
                     "Key {$key} not valid"
@@ -78,7 +80,9 @@ abstract class ShortcutController extends AbstractController {
         );
         $exc = $validator->validate($schema);
 
-        // If all validation instantly passes, end the function
+        $this->_kv_mapping_for_constraints($exc);
+
+        // If all validation instantly passes, skip the rest
         if (sizeof($exc) == 0) {
             return;
         }
@@ -88,6 +92,7 @@ abstract class ShortcutController extends AbstractController {
         // Not both of these conditions can apply at the same time
         // partial means we ignore NotNull errors as long as one field exists
         if ($args["partial"]) {
+            // Currently broken typing, investigate source
             $relevant_exc = array_diff(
                 $exc,
                 $exc->findByCodes(NotNull::IS_NULL_ERROR)
@@ -143,5 +148,17 @@ abstract class ShortcutController extends AbstractController {
         $fragments = explode(".", $err->getPropertyPath());
         $err_key = array_values(array_slice($fragments, -1))[0];
         return $err_key;
+    }
+
+    private function _kv_mapping_for_constraints($errs): array {
+        $kv_map = [];
+
+        foreach ($errs as $err) {
+            $k = $this->_get_validated_key($err);
+            $v = $err->getCode();
+            $kv_map[$k] = $v;
+        };
+        
+        return $kv_map;
     }
 }
